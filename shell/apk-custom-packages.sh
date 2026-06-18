@@ -51,9 +51,10 @@ CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-i18n-nps-zh-cn"
 CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-i18n-xfrpc-zh-cn"
 # 网盘聚合
 CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-i18n-openlist-zh-cn"
-# 文件管理
+# 文件管理 (注意: luci-app-filebrowser 和 luci-app-filebrowser-go 文件冲突，只能选一个)
+# filebrowser-go 是 Go 重写版，与原版 filebrowser 冲突，推荐用 filebrowser-go
 CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-i18n-filebrowser-go-zh-cn"
-CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-i18n-filebrowser-zh-cn"
+#CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-i18n-filebrowser-zh-cn"
 # 文件管理 (注意: luci-i18n-filemanager-zh-cn 已在 build25.sh 中默认包含，无需重复添加)
 #CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-i18n-filemanager-zh-cn"
 # 网络唤醒
