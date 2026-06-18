@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ImmortalWrt-ImageBuilder 项目说明</title>
+<style>
+  :root { --bg: #0d1117; --card: #161b22; --border: #30363d; --text: #e6edf3; --muted: #8b949e; --accent: #58a6ff; --green: #3fb950; --orange: #d29922; --red: #f85149; --purple: #bc8cff; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; padding: 2rem; max-width: 1100px; margin: 0 auto; }
+  h1 { font-size: 2rem; margin-bottom: .5rem; border-bottom: 2px solid var(--accent); padding-bottom: .5rem; }
+  h2 { font-size: 1.4rem; margin: 2rem 0 1rem; color: var(--accent); border-left: 4px solid var(--accent); padding-left: .75rem; }
+  h3 { font-size: 1.15rem; margin: 1.5rem 0 .75rem; color: var(--purple); }
+  p, li { color: var(--text); }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code { background: #1c2128; padding: 2px 6px; border-radius: 4px; font-size: .9em; color: var(--green); }
+  pre { background: #1c2128; border: 1px solid var(--border); border-radius: 8px; padding: 1rem; overflow-x: auto; margin: .75rem 0; font-size: .88em; line-height: 1.6; }
+  pre code { background: none; padding: 0; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 1.25rem; margin: 1rem 0; }
+  .tag { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: .78em; font-weight: 600; margin: 2px; }
+  .tag-blue { background: #1f6feb33; color: var(--accent); }
+  .tag-green { background: #23863633; color: var(--green); }
+  .tag-orange { background: #9e6a0333; color: var(--orange); }
+  .tag-red { background: #da363433; color: var(--red); }
+  .tag-purple { background: #8957e533; color: var(--purple); }
+  table { width: 100%; border-collapse: collapse; margin: .75rem 0; font-size: .92em; }
+  th, td { border: 1px solid var(--border); padding: .6rem .8rem; text-align: left; }
+  th { background: #1c2128; color: var(--accent); font-weight: 600; }
+  tr:nth-child(even) { background: #1c2128; }
+  .flow { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin: .75rem 0; }
+  .flow-step { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: .5rem 1rem; font-size: .88em; }
+  .flow-arrow { color: var(--muted); font-size: 1.2em; }
+  .note { background: #1c2128; border-left: 4px solid var(--orange); padding: .75rem 1rem; border-radius: 0 8px 8px 0; margin: .75rem 0; font-size: .92em; }
+  .note::before { content: '⚠ '; color: var(--orange); font-weight: 700; }
+  .toc { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.5rem; margin: 1.5rem 0; }
+  .toc ul { list-style: none; }
+  .toc li { padding: .2rem 0; }
+  .toc a { color: var(--accent); }
+  @media (max-width: 768px) { body { padding: 1rem; } h1 { font-size: 1.5rem; } .flow { flex-direction: column; } .flow-arrow { transform: rotate(90deg); } }
+</style>
+</head>
+<body>
+
+<h1>ImmortalWrt-ImageBuilder 项目说明</h1>
+<p style="color:var(--muted)">基于 ImmortalWrt 官方 ImageBuilder 的 GitHub Actions 自动化固件构建工具</p>
+<p>源仓库：<a href="https://github.com/wukongdaily/ImmortalWrt-ImageBuilder">wukongdaily/ImmortalWrt-ImageBuilder</a></p>
+
+<div class="toc">
+  <strong>目录</strong>
+  <ul>
+    <li><a href="#overview">1. 项目概述</a></li>
+    <li><a href="#structure">2. 目录结构</a></li>
+    <li><a href="#workflows">3. 工作流一览</a></li>
+    <li><a href="#iso-workflow">4. ISO 构建工作流详解</a></li>
+    <li><a href="#packages">5. 第三方软件包机制</a></li>
+    <li><a href="#howto">6. 如何启用第三方软件</a></li>
+    <li><a href="#build-flow">7. 完整构建流程图</a></li>
+    <li><a href="#firstboot">8. 固件首次启动脚本</a></li>
+    <li><a href="#faq">9. 常见问题</a></li>
+  </ul>
+</div>
+
+<!-- ==================== 1. 项目概述 ==================== -->
+<h2 id="overview">1. 项目概述</h2>
+<div class="card">
+  <p>本项目 <strong>不是从源码编译</strong> ImmortalWrt，而是利用官方提供的 <strong>ImageBuilder</strong> Docker 镜像，在 GitHub Actions 中自动化打包固件。</p>
+  <p>ImageBuilder 的工作方式是：给定一个包列表，它从预编译的软件仓库中下载并组装成完整的固件镜像（img / ISO）。</p>
+  <p style="margin-top:.5rem">核心特点：</p>
+  <ul style="margin-left:1.5rem">
+    <li>通过 Docker 容器运行 ImageBuilder，无需本地搭建编译环境</li>
+    <li>支持 <code>workflow_dispatch</code> 手动触发，在 GitHub Actions UI 上选择参数</li>
+    <li>支持集成第三方软件包（ipk / apk）</li>
+    <li>ISO 工作流额外封装为可引导的 Debian Live 安装器</li>
+  </ul>
+</div>
+
+<!-- ==================== 2. 目录结构 ==================== -->
+<h2 id="structure">2. 目录结构</h2>
+<div class="card">
+<pre><code>ImmortalWrt-ImageBuilder/
+├── .github/workflows/     # 19 个 GitHub Actions 工作流 YAML
+├── arch/                  # 架构配置 (arch.conf, rpi3/4/5.conf)
+├── armsr-armv8/           # ARM 通用平台
+├── files/etc/uci-defaults/# 固件首次启动脚本 99-custom.sh
+├── glinet/                # GL.iNet 专用 UCI 脚本
+├── mediatek-filogic/      # 联发科平台 (build23/24/25.sh)
+├── model/                 # 路由器型号分类文件
+├── n1/                    # 斐讯 N1
+├── raspberrypi/           # 树莓派
+├── rockchip/              # 瑞芯微平台 (build23/24/25.sh)
+├── <strong style="color:var(--accent)">shell/</strong>                 # 核心：自定义包脚本 (4 个 sh)
+├── sunxi-cortexa53/       # 全志平台
+├── <strong style="color:var(--accent)">x86-64/</strong>               # x86 平台 (build24/25.sh, imm.config/imm25.config)
+├── custom/                # 运行时创建：自定义路由器 IP 等配置
+├── PACKAGES.md            # 第三方软件包说明文档
+└── SUPPORT.md             # 支持的设备列表</code></pre>
+</div>
+
+<!-- ==================== 3. 工作流一览 ==================== -->
+<h2 id="workflows">3. 工作流一览</h2>
+
+<h3>3.1 版本线</h3>
+<p>项目维护三条版本线，包管理体系不同：</p>
+<table>
+  <tr><th>版本</th><th>包格式</th><th>包管理器</th><th>自定义包脚本</th><th>第三方仓库</th></tr>
+  <tr><td><span class="tag tag-orange">23.05.4</span></td><td>ipk</td><td>opkg</td><td>custom-packages.sh</td><td>wukongdaily/store</td></tr>
+  <tr><td><span class="tag tag-blue">24.10.x</span></td><td>ipk</td><td>opkg</td><td>custom-packages.sh</td><td>wukongdaily/store</td></tr>
+  <tr><td><span class="tag tag-green">25.12.x</span></td><td>apk</td><td>apk</td><td>apk-custom-packages.sh</td><td>wukongdaily/apk</td></tr>
+</table>
+
+<h3>3.2 全部工作流</h3>
+<table>
+  <tr><th>工作流文件</th><th>版本</th><th>平台</th><th>产出格式</th></tr>
+  <tr><td>build-iso.yml</td><td>24.10.x</td><td>x86-64</td><td>ISO 安装器</td></tr>
+  <tr><td>build-iso-25.12.x.yml</td><td>25.12.x</td><td>x86-64</td><td>ISO 安装器</td></tr>
+  <tr><td>build-x86-64-23.05.4.yml</td><td>23.05.4</td><td>x86-64</td><td>img</td></tr>
+  <tr><td>build-x86-64-24.10.x.yml</td><td>24.10.x</td><td>x86-64</td><td>img</td></tr>
+  <tr><td>build-x86-64-25.12.x.yml</td><td>25.12.x</td><td>x86-64</td><td>img</td></tr>
+  <tr><td>build-rockchip-immortalWrt-23.05.4.yml</td><td>23.05.4</td><td>rockchip</td><td>img</td></tr>
+  <tr><td>build-rockchip-immortalWrt-24.10.x.yml</td><td>24.10.x</td><td>rockchip</td><td>img</td></tr>
+  <tr><td>build-rockchip-25.12.x.yml</td><td>25.12.x</td><td>rockchip</td><td>img</td></tr>
+  <tr><td>build-sunxi-cortexa53-23.05.4.yml</td><td>23.05.4</td><td>全志 A53</td><td>img</td></tr>
+  <tr><td>build-sunxi-cortexa53-24.10.x.yml</td><td>24.10.x</td><td>全志 A53</td><td>img</td></tr>
+  <tr><td>build-sunxi-cortexa53-25.12.x.yml</td><td>25.12.x</td><td>全志 A53</td><td>img</td></tr>
+  <tr><td>build-RaspBerryPi-23.05.4.yml</td><td>23.05.4</td><td>树莓派</td><td>img</td></tr>
+  <tr><td>build-RaspBerryPi-24.10.x.yml</td><td>24.10.x</td><td>树莓派</td><td>img</td></tr>
+  <tr><td>build-QEMU-arm64-24.10.x.yml</td><td>24.10.x</td><td>QEMU arm64</td><td>img</td></tr>
+  <tr><td>build-N1.yml</td><td>—</td><td>斐讯 N1</td><td>img</td></tr>
+  <tr><td>build-boxs-by-ophub.yml</td><td>—</td><td>电视盒子</td><td>img</td></tr>
+  <tr><td>build-dev-board-by-flippy.yml</td><td>—</td><td>开发板</td><td>img</td></tr>
+  <tr><td>build-wireless-router.yml</td><td>24.10.x</td><td>无线路由器</td><td>img</td></tr>
+  <tr><td>build-wireless-router25.12.yml</td><td>25.12.x</td><td>无线路由器</td><td>img</td></tr>
+  <tr><td>clean-workflow.yml</td><td colspan="3">工具：清理旧 workflow 运行记录</td></tr>
+</table>
+
+<!-- ==================== 4. ISO 构建工作流详解 ==================== -->
+<h2 id="iso-workflow">4. ISO 构建工作流详解</h2>
+
+<h3>4.1 两个 ISO 工作流对比</h3>
+<table>
+  <tr><th>项目</th><th>build-iso.yml (24.10.x)</th><th>build-iso-25.12.x.yml (25.12.x)</th></tr>
+  <tr><td>LuCI 版本选项</td><td>24.10.0 ~ 24.10.6</td><td>25.12.0-rc1 / rc2 / 25.12.0</td></tr>
+  <tr><td>构建脚本</td><td>x86-64/build24.sh</td><td>x86-64/build25.sh</td></tr>
+  <tr><td>配置文件</td><td>x86-64/imm.config</td><td>x86-64/imm25.config</td></tr>
+  <tr><td>自定义包脚本</td><td>shell/custom-packages.sh</td><td>shell/apk-custom-packages.sh</td></tr>
+  <tr><td>第三方仓库</td><td>wukongdaily/store (ipk)</td><td>wukongdaily/apk (apk)</td></tr>
+  <tr><td>Store 默认</td><td>默认开启</td><td>默认关闭</td></tr>
+  <tr><td>挂载 custom/ 目录</td><td>无</td><td>有（支持自定义路由器 IP）</td></tr>
+  <tr><td>switch_repository.sh</td><td>调用</td><td>不调用</td></tr>
+</table>
+
+<h3>4.2 工作流 UI 参数</h3>
+<p>在 GitHub 仓库页面 → Actions → 选择工作流 → Run workflow 时可配置：</p>
+<table>
+  <tr><th>参数</th><th>说明</th><th>24.10.x 默认</th><th>25.12.x 默认</th></tr>
+  <tr><td>luci_version</td><td>选择 ImmortalWrt/LuCI 版本</td><td>24.10.6</td><td>25.12.0</td></tr>
+  <tr><td>profile</td><td>固件大小（MB），决定 rootfs 分区大小</td><td>1024</td><td>1024</td></tr>
+  <tr><td>enable_store</td><td>是否集成 iStore 商店</td><td>true</td><td>false</td></tr>
+  <tr><td>include_docker</td><td>是否集成 Docker 管理插件</td><td>yes</td><td>yes</td></tr>
+  <tr><td>enable_pppoe</td><td>是否配置 PPPoE 拨号</td><td>no</td><td>no</td></tr>
+  <tr><td>pppoe_account</td><td>宽带账号（启用 PPPoE 时必填）</td><td>—</td><td>—</td></tr>
+  <tr><td>pppoe_password</td><td>宽带密码（启用 PPPoE 时必填）</td><td>—</td><td>—</td></tr>
+</table>
+
+<h3>4.3 ISO 工作流执行流程</h3>
+<p>ISO 工作流分为 <strong>两个 Job</strong>：</p>
+
+<div class="card">
+<h4 style="color:var(--green)">Job 1: build_immortalwrt — 构建固件 img</h4>
+<div class="flow">
+  <span class="flow-step">Checkout 代码</span>
+  <span class="flow-arrow">→</span>
+  <span class="flow-step">设置 build25.sh 可执行权限</span>
+  <span class="flow-arrow">→</span>
+  <span class="flow-step">校验 PPPoE 输入</span>
+  <span class="flow-arrow">→</span>
+  <span class="flow-step">若勾选 enable_store 则追加 luci-app-store</span>
+  <span class="flow-arrow">→</span>
+  <span class="flow-step">Docker 运行 ImageBuilder 容器</span>
+  <span class="flow-arrow">→</span>
+  <span class="flow-step">复制 img.gz 到根目录</span>
+  <span class="flow-arrow">→</span>
+  <span class="flow-step">上传为 artifact</span>
+</div>
+</div>
+
+<div class="card">
+<h4 style="color:var(--purple)">Job 2: build_installer_iso — 封装为 ISO</h4>
+<div class="flow">
+  <span class="flow-step">下载 Job 1 产出的 firmware-img</span>
+  <span class="flow-arrow">→</span>
+  <span class="flow-step">克隆 wukongdaily/img-installer</span>
+  <span class="flow-arrow">→</span>
+  <span class="flow-step">执行 autobuild.sh 将 img.gz 封装为 ISO</span>
+  <span class="flow-arrow">→</span>
+  <span class="flow-step">上传 ISO 到 GitHub Release</span>
+</div>
+</div>
+
+<h3>4.4 Docker 容器挂载详情（25.12.x ISO）</h3>
+<pre><code>docker run --rm -i --user root \
+  -v bin/            → /home/build/immortalwrt/bin          # 产出目录
+  -v files/          → /home/build/immortalwrt/files         # 首次启动脚本
+  -v custom/         → /home/build/immortalwrt/files/etc/config  # 自定义路由器IP
+  -v x86-64/imm25.config → /home/build/immortalwrt/.config  # ImageBuilder 配置
+  -v shell/          → /home/build/immortalwrt/shell         # 自定义包脚本
+  -v x86-64/build25.sh  → /home/build/immortalwrt/build.sh  # 构建入口脚本
+  -e PROFILE / INCLUDE_DOCKER / ENABLE_PPPOE / ...          # 环境变量
+  immortalwrt/imagebuilder:x86-64-openwrt-${luci_version}</code></pre>
+
+<!-- ==================== 5. 第三方软件包机制 ==================== -->
+<h2 id="packages">5. 第三方软件包机制</h2>
+
+<h3>5.1 shell/ 目录核心脚本</h3>
+<table>
+  <tr><th>脚本</th><th>适用版本</th><th>功能</th></tr>
+  <tr><td><code>shell/custom-packages.sh</code></td><td>23.05.4 / 24.10.x</td><td>声明第三方 ipk 包列表（变量拼接）</td></tr>
+  <tr><td><code>shell/apk-custom-packages.sh</code></td><td>25.12.x</td><td>声明第三方 apk 包列表（变量拼接）</td></tr>
+  <tr><td><code>shell/prepare-packages.sh</code></td><td>23.05.4 / 24.10.x</td><td>解压 .run 文件，收集 .ipk 到 packages/</td></tr>
+  <tr><td><code>shell/apk-prepare-packages.sh</code></td><td>25.12.x</td><td>解压 .run 文件，收集 .apk 到 packages/</td></tr>
+  <tr><td><code>shell/switch_repository.sh</code></td><td>24.10.x</td><td>打印 repositories.conf（镜像切换已注释）</td></tr>
+</table>
+
+<h3>5.2 自定义包脚本的工作原理</h3>
+<p>以 <code>apk-custom-packages.sh</code> 为例，所有条目默认被注释，用户取消注释即可启用：</p>
+<pre><code># 未启用（默认）
+#CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-app-passwall2 luci-i18n-passwall2-zh-cn"
+
+# 已启用（去掉行首 #）
+CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-app-passwall2 luci-i18n-passwall2-zh-cn"</code></pre>
+<p>脚本通过 bash 变量拼接的方式，将所有启用的包名累积到 <code>CUSTOM_PACKAGES</code> 变量中，最终在 build25.sh 中合并到 <code>PACKAGES</code> 字符串传给 <code>make image</code>。</p>
+
+<h3>5.3 第三方包的来源</h3>
+<table>
+  <tr><th>版本</th><th>第三方仓库</th><th>仓库内容</th><th>架构目录</th></tr>
+  <tr><td>24.10.x</td><td><a href="https://github.com/wukongdaily/store">wukongdaily/store</a></td><td>.run 自解压文件 + .ipk</td><td>run/x86/</td></tr>
+  <tr><td>25.12.x</td><td><a href="https://github.com/wukongdaily/apk">wukongdaily/apk</a></td><td>.run 自解压文件 + .apk</td><td>run/x86/</td></tr>
+</table>
+
+<h3>5.4 prepare-packages 脚本流程</h3>
+<div class="flow">
+  <span class="flow-step">清理旧 temp-unpack/ 和 packages/</span>
+  <span class="flow-arrow">→</span>
+  <span class="flow-step">解压 extra-packages/*.run</span>
+  <span class="flow-arrow">→</span>
+  <span class="flow-step">收集解压出的 .apk/.ipk</span>
+  <span class="flow-arrow">→</span>
+  <span class="flow-step">收集 extra-packages/*/ 下的 .apk/.ipk</span>
+  <span class="flow-arrow">→</span>
+  <span class="flow-step">全部复制到 packages/ 目录</span>
+</div>
+
+<h3>5.5 可用的第三方软件列表</h3>
+
+<h4>25.12.x (apk) — shell/apk-custom-packages.sh</h4>
+<table>
+  <tr><th>软件</th><th>类型</th><th>说明</th></tr>
+  <tr><td>luci-i18n-quickstart-zh-cn</td><td>仓库外</td><td>首页和网络向导（依赖 iStore 商店）</td></tr>
+  <tr><td>luci-app-run</td><td>仓库外</td><td>Run 安装器（与 quickfile 冲突）</td></tr>
+  <tr><td>bash quickfile luci-app-quickfile</td><td>仓库外</td><td>文件管理器</td></tr>
+  <tr><td>luci-theme-aurora</td><td>仓库外</td><td>极光主题</td></tr>
+  <tr><td>luci-app-partexp</td><td>仓库外</td><td>分区扩容</td></tr>
+  <tr><td>bandix luci-app-bandix</td><td>仓库外</td><td>流量监控</td></tr>
+  <tr><td>luci-app-ssr-plus</td><td>仓库外</td><td>代理工具 SSR Plus（含 xray-core, naiveproxy）</td></tr>
+  <tr><td>luci-app-passwall2</td><td>仓库外</td><td>代理工具 PassWall2（含 xray-core, sing-box, hysteria, kmod）</td></tr>
+  <tr><td>luci-app-rtp2httpd</td><td>仓库外</td><td>IPTV 流媒体转发</td></tr>
+  <tr><td>clashoo luci-app-clashoo</td><td>仓库外</td><td>Clashoo（与 nikki 冲突）</td></tr>
+  <tr><td>luci-app-lucky</td><td>仓库外</td><td>Lucky 大吉</td></tr>
+  <tr><td>luci-i18n-daed-zh-cn</td><td>仓库外</td><td>daed 代理</td></tr>
+  <tr><td>luci-i18n-nikki-zh-cn</td><td>仓库内</td><td>nikki 代理</td></tr>
+  <tr><td>luci-app-openclash</td><td>仓库内</td><td>OpenClash（自动下载 clash_meta 内核 + GeoIP/Site）</td></tr>
+  <tr><td>luci-proto-wireguard</td><td>仓库内</td><td>WireGuard VPN</td></tr>
+  <tr><td>luci-app-tailscale-community</td><td>仓库内</td><td>Tailscale VPN</td></tr>
+  <tr><td>luci-i18n-zerotier-zh-cn</td><td>仓库内</td><td>ZeroTier 内网穿透</td></tr>
+  <tr><td>luci-i18n-ddns-go-zh-cn</td><td>仓库内</td><td>DDNS-Go</td></tr>
+  <tr><td>luci-i18n-openlist-zh-cn</td><td>仓库内</td><td>网盘聚合</td></tr>
+  <tr><td>luci-i18n-commands-zh-cn</td><td>仓库内</td><td>自定义命令</td></tr>
+  <tr><td>...更多仓库内插件</td><td>仓库内</td><td>见 apk-custom-packages.sh 完整列表</td></tr>
+</table>
+
+<h4>24.10.x (ipk) — shell/custom-packages.sh 额外可用</h4>
+<table>
+  <tr><th>软件</th><th>说明</th></tr>
+  <tr><td>luci-app-nekobox</td><td>代理工具 NekoBox</td></tr>
+  <tr><td>momo luci-app-momo</td><td>代理工具 Momo</td></tr>
+  <tr><td>luci-app-uninstall</td><td>高级卸载</td></tr>
+  <tr><td>luci-app-adguardhome</td><td>去广告 AdGuard Home</td></tr>
+  <tr><td>luci-app-mosdns</td><td>MosDNS 分流</td></tr>
+  <tr><td>luci-app-turboacc</td><td>Turbo ACC 网络加速</td></tr>
+  <tr><td>luci-app-advancedplus</td><td>进阶设置（与 argon-config 冲突）</td></tr>
+  <tr><td>luci-app-easytier</td><td>EasyTier 组网</td></tr>
+  <tr><td>luci-app-watchdog</td><td>看门狗</td></tr>
+</table>
+
+<div class="note">
+  25.12.x 的 apk-custom-packages.sh 中没有 nekobox、momo、uninstall、netwizard 的条目。如果需要在 25.12.x 中使用这些包，需确认 <a href="https://github.com/wukongdaily/apk">wukongdaily/apk</a> 仓库中是否有对应的 apk 版本，然后手动添加条目。
+</div>
+
+<!-- ==================== 6. 如何启用第三方软件 ==================== -->
+<h2 id="howto">6. 如何启用第三方软件</h2>
+
+<h3>6.1 方法一：编辑 shell/ 脚本（推荐）</h3>
+<div class="card">
+  <p><strong>步骤：</strong></p>
+  <ol style="margin-left:1.5rem">
+    <li>Fork 本仓库到自己的 GitHub 账号</li>
+    <li>根据目标版本编辑对应的脚本：
+      <ul>
+        <li>25.12.x → 编辑 <code>shell/apk-custom-packages.sh</code></li>
+        <li>24.10.x → 编辑 <code>shell/custom-packages.sh</code></li>
+      </ul>
+    </li>
+    <li>去掉想启用的包所在行的行首 <code>#</code></li>
+    <li>提交修改到自己的仓库</li>
+    <li>在自己仓库的 Actions 页面手动触发工作流</li>
+  </ol>
+</div>
+
+<h3>6.2 方法二：通过工作流 UI 选项</h3>
+<div class="card">
+  <p>部分高频操作已提取为工作流 UI 选项，无需修改代码：</p>
+  <ul style="margin-left:1.5rem">
+    <li><strong>enable_store</strong>：勾选后自动追加 <code>luci-app-store</code> 到自定义包脚本</li>
+    <li><strong>include_docker</strong>：选择 yes 自动集成 Docker 管理插件</li>
+    <li><strong>enable_pppoe</strong>：配置 PPPoE 拨号信息</li>
+  </ul>
+  <p>原理：工作流 YAML 中通过 <code>echo 'CUSTOM_PACKAGES=...' >> shell/xxx.sh</code> 动态追加。</p>
+</div>
+
+<h3>6.3 方法三：添加自定义包（高级）</h3>
+<div class="card">
+  <p>如果需要的包不在脚本中，可以手动添加：</p>
+  <pre><code># 在 apk-custom-packages.sh 中添加新行
+CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-app-xxx luci-i18n-xxx-zh-cn"</code></pre>
+  <p>前提条件：</p>
+  <ul style="margin-left:1.5rem">
+    <li>该包必须存在于 ImmortalWrt 官方仓库中（仓库内插件）</li>
+    <li>或者该包的 .apk/.ipk 文件存在于第三方仓库（wukongdaily/apk 或 wukongdaily/store）</li>
+    <li>如果都不在，需要自行将包文件放入 <code>extra-packages/</code> 目录结构中</li>
+  </ul>
+</div>
+
+<!-- ==================== 7. 完整构建流程图 ==================== -->
+<h2 id="build-flow">7. 完整构建流程图（25.12.x ISO）</h2>
+<pre><code>用户在 GitHub Actions UI 触发工作流
+│
+├─ 选择参数: luci_version / profile / enable_store / include_docker / ...
+│
+├─ 若勾选 enable_store → 追加 "luci-app-store" 到 apk-custom-packages.sh
+│
+▼
+Job 1: build_immortalwrt (ubuntu-22.04)
+│
+├─ Checkout 代码
+├─ chmod +x build25.sh
+├─ 校验 PPPoE 输入
+│
+├─ Docker 容器启动 → 执行 build25.sh
+│   │
+│   ├─ source shell/apk-custom-packages.sh → 读取 CUSTOM_PACKAGES
+│   │
+│   ├─ 若 CUSTOM_PACKAGES 非空：
+│   │   ├─ git clone wukongdaily/apk → /tmp/store-apk-repo
+│   │   ├─ cp run/x86/* → extra-packages/
+│   │   └─ sh apk-prepare-packages.sh
+│   │       ├─ 解压 extra-packages/*.run
+│   │       └─ 收集 .apk → packages/ 目录
+│   │
+│   ├─ 构建 PACKAGES 字符串：
+│   │   ├─ 基础包: curl, diskman, firewall, argon, ttyd, sftp, filemanager
+│   │   ├─ 合并: PACKAGES="$PACKAGES $CUSTOM_PACKAGES"
+│   │   ├─ 若 INCLUDE_DOCKER=yes → 追加 luci-i18n-dockerman-zh-cn
+│   │   ├─ 若含 openclash → 下载 clash_meta 内核 + GeoIP/Site + 最新 apk
+│   │   └─ 若含 ssr-plus → 下载 mihomo 内核
+│   │
+│   └─ make image PROFILE="generic" PACKAGES="$PACKAGES" FILES=... ROOTFS_PARTSIZE=$profile
+│
+├─ 复制 *squashfs-combined-efi.img.gz → 根目录
+└─ 上传 img.gz 为 artifact
+│
+▼
+Job 2: build_installer_iso (ubuntu-22.04)
+│
+├─ 下载 firmware-img artifact
+├─ git clone wukongdaily/img-installer
+├─ bash autobuild/autobuild.sh "firmware.img.gz"
+│   └─ 将 img.gz 封装为可引导的 Debian Live ISO
+└─ 上传 ISO 到 GitHub Release (tag: Custom-Installer-x86_64-ISO)</code></pre>
+
+<!-- ==================== 8. 固件首次启动脚本 ==================== -->
+<h2 id="firstboot">8. 固件首次启动脚本</h2>
+<div class="card">
+  <p>文件：<code>files/etc/uci-defaults/99-custom.sh</code></p>
+  <p>固件首次启动时自动执行一次，完成以下配置：</p>
+  <table>
+    <tr><th>#</th><th>功能</th></tr>
+    <tr><td>1</td><td>设置 WAN 防火墙入站规则为 ACCEPT（方便首次访问 WebUI）</td></tr>
+    <tr><td>2</td><td>添加 <code>time.android.com</code> 域名映射（解决安卓 TV 联网问题）</td></tr>
+    <tr><td>3</td><td>读取 PPPoE 配置（由 build.sh 动态生成）</td></tr>
+    <tr><td>4</td><td>自动检测物理网口数量：单网口设 DHCP 模式，多网口设 WAN/LAN 分离</td></tr>
+    <tr><td>5</td><td>特殊处理 radxa-e20c / nanopi-r5c 网口顺序</td></tr>
+    <tr><td>6</td><td>多网口设备支持自定义管理 IP（从 custom_router_ip.txt 读取，默认 192.168.100.1）</td></tr>
+    <tr><td>7</td><td>配置 PPPoE 拨号（若启用）</td></tr>
+    <tr><td>8</td><td>设置 ttyd 和 SSH 允许所有网口访问</td></tr>
+    <tr><td>9</td><td>修复 advancedplus 插件的 zsh 问题</td></tr>
+    <tr><td>10</td><td>修复 quickfile 的 nginx 配置冲突</td></tr>
+    <tr><td>11</td><td>配置 Docker 防火墙规则（扩大子网范围至 172.16.0.0/12）</td></tr>
+  </table>
+</div>
+
+<!-- ==================== 9. 常见问题 ==================== -->
+<h2 id="faq">9. 常见问题</h2>
+
+<div class="card">
+  <h3>Q: 构建失败提示找不到某个包怎么办？</h3>
+  <p>A: 说明该包在 ImmortalWrt 官方仓库和第三方仓库中都不存在对应版本。请到 <a href="https://github.com/wukongdaily/apk">wukongdaily/apk</a>（25.12.x）或 <a href="https://github.com/wukongdaily/store">wukongdaily/store</a>（24.10.x）确认包是否存在，然后注释掉该行。</p>
+</div>
+
+<div class="card">
+  <h3>Q: 固件太大或构建失败怎么办？</h3>
+  <p>A: 硬路由闪存空间有限，减少启用的第三方包数量。可以增大 <code>profile</code> 参数（固件大小 MB），或减少同时启用的代理类插件。</p>
+</div>
+
+<div class="card">
+  <h3>Q: clashoo 和 nikki 可以同时启用吗？</h3>
+  <p>A: 不可以，它们配置冲突。脚本中已标注此限制。</p>
+</div>
+
+<div class="card">
+  <h3>Q: ISO 安装器怎么用？</h3>
+  <p>A: 将 ISO 写入 U 盘或挂载到虚拟机，引导进入 Debian Live 系统后输入命令 <code>ddd</code> 即可调出安装菜单，可选择目标硬盘进行安装。安装后的 OpenWrt 会有剩余磁盘空间。详见 <a href="https://github.com/wukongdaily/img-installer">wukongdaily/img-installer</a>。</p>
+</div>
+
+<div class="card">
+  <h3>Q: 如何在 25.12.x 中使用 nekobox / momo / uninstall / netwizard？</h3>
+  <p>A: 这些包目前在 <code>apk-custom-packages.sh</code> 中没有条目。需要：</p>
+  <ol style="margin-left:1.5rem">
+    <li>确认 <a href="https://github.com/wukongdaily/apk">wukongdaily/apk</a> 仓库中是否有对应 apk 包</li>
+    <li>如果有，在 <code>apk-custom-packages.sh</code> 中添加：<br><code>CUSTOM_PACKAGES="$CUSTOM_PACKAGES luci-app-xxx"</code></li>
+    <li>如果没有，需要自行编译或寻找 apk 包放入 extra-packages/ 目录</li>
+  </ol>
+</div>
+
+<div class="card">
+  <h3>Q: 24.10.x 和 25.12.x 的包能混用吗？</h3>
+  <p>A: 不能。24.10.x 使用 ipk 格式（opkg），25.12.x 使用 apk 格式。包格式不同，脚本也不同，必须使用对应版本的脚本和仓库。</p>
+</div>
+
+<p style="text-align:center; color:var(--muted); margin-top:3rem; font-size:.85em">文档生成时间：2026-06-18 | 基于 wukongdaily/ImmortalWrt-ImageBuilder 仓库</p>
+
+</body>
+</html>
